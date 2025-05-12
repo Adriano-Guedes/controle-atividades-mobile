@@ -27,6 +27,7 @@ export default function Cadastro() {
         email,
       });
 
+      navigate("/");
       alert("Usuário cadastrado com sucesso!");
     } catch (error) {
       console.error(error.message);
