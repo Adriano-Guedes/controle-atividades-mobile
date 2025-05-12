@@ -1,251 +1,139 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useParams, Navigate, useNavigate } from 'react-router-dom';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
-import { getDatabase, ref, get, push, set, remove } from 'firebase/database';
-import { useNavigate } from 'react-router-dom';
-import DaoUsuario from "../model/dao/DaoUsuario.js";
-// import DaoMateria from "../model/dao/DaoMateria.js";
-// import DaoAtividade from "../model/dao/DaoAtividade.js";
-// import DaoRegistro from "../model/dao/DaoRegistro.js";
-// import Usuario from "../model/Usuario.js";
-// import Materia from "../model/Materia.js";
-// import Atividade from "../model/Atividade.js";
-// import Registro from "../model/Registro.js";
-import './css/Home.css';
+import { getDatabase } from 'firebase/database';
+import DaoUsuario from '../model/dao/DaoUsuario.js';
+import DaoMateria from '../model/dao/DaoMateria.js';
 
 export default function Home() {
-  const [userData, setUserData] = useState(null);
-  const [usuarioData, setUsuarioData] = useState(null);
-  const [materias, setMaterias] = useState([]);
-  const [showModalAdicionarMateria, setShowModalAdicionarMateria] = useState(false);
-  const [novaMateria, setNovaMateria] = useState({ nome: '', descricao: '' });
-  const navigate = useNavigate();
-  const daoUsuario = new DaoUsuario();
-  const [editandoMateria, setEditandoMateria] = useState(null);
-
-  // const daoMateria = new DaoMateria();
-  // const daoAtividade = new DaoAtividade();
-  // const daoRegistro = new DaoRegistro();
-  // const usuario = new Usuario();
-  // const materia = new Materia();
-  // const atividade = new Atividade();
-  // const registro = new Registro();
-
+  const { id } = useParams();
   const auth = getAuth();
   const db = getDatabase();
-  const userId = auth.currentUser.uid;
+  const navigate = useNavigate();
+
+  const daoUsuario = useMemo(() => new DaoUsuario(), []);
+  const daoMateria = useMemo(() => new DaoMateria(), []);
+
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [usuarioData, setUsuarioData] = useState(null);
+  const [materias, setMaterias] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [novaMateria, setNovaMateria] = useState({ nome: '', descricao: '' });
+  const [editando, setEditando] = useState(null);
 
   useEffect(() => {
-
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUserData(user);
-
-        daoUsuario.obterUsuarioPeloId(user.uid)
-          .then((usuarioData) => {
-            if (usuarioData) {
-              setUsuarioData(usuarioData);
-
-              const userRef = ref(db, `usuarios/${user.uid}/materias`);
-              get(userRef)
-                .then((snapshot) => {
-                  if (snapshot.exists()) {
-                    const data = snapshot.val();
-                    const lista = Object.keys(data).map((key) => ({
-                      id: key,
-                      ...data[key],
-                    }));
-                    setMaterias(lista);
-
-                  } else {
-                    setMaterias([]);
-                  }
-                })
-                .catch((error) => {
-                  console.error('Erro ao recuperar as matérias:', error);
-                });
-            } else {
-              console.error('Usuário não encontrado no banco de dados.');
-            }
-          })
-          .catch((error) => {
-            console.error('Erro ao obter dados do usuário:', error);
-          });
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (u && u.uid === id) {
+        setUser(u);
+        try {
+          const perfil = await daoUsuario.obterUsuarioPeloId(u.uid);
+          setUsuarioData(perfil);
+          const mats = await daoMateria.obterMateriasPorUsuario(db, u.uid);
+          setMaterias(mats);
+        } catch (e) {
+          console.error(e);
+        }
       } else {
-        navigate('/');
+        setUser(null);
       }
+      setLoading(false);
     });
+    return () => unsub();
+  }, [auth, id, daoUsuario, daoMateria, db]);
 
-    return () => unsubscribe();
-
-  }, [navigate]);
-
-  useEffect(() => {
-    if (editandoMateria) {
-      setNovaMateria({ nome: editandoMateria.nome, descricao: editandoMateria.descricao });
-    }
-  }, [editandoMateria]);
-
-  const formatarData = (data) => {
-    const date = new Date(data);
-    const dia = String(date.getDate()).padStart(2, '0');
-    const mes = String(date.getMonth() + 1).padStart(2, '0');
-    const ano = date.getFullYear();
-    return `${dia}/${mes}/${ano}`;
-  };
+  if (loading)          return <div>Carregando...</div>;
+  if (!user)            return <Navigate to="/" replace />;
 
   const handleLogout = async () => {
-    try {
-      await signOut(getAuth());
-      navigate('/');
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error);
+    await signOut(auth);
+    navigate('/');
+  };
+
+  const salvarMateria = async () => {
+    if (!novaMateria.nome || !novaMateria.descricao) {
+      return alert('Preencha todos os campos');
     }
-  };
-
-  const handleMateriaChange = (e) => {
-    const { name, value } = e.target;
-    setNovaMateria((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleAdicionarAtividade = (materia) => {
-    navigate(`/materia/${materia.id || materia.nome}/atividade`);
-  };
-
-  const handleEditarMateria = (materia, index) => {
-    setEditandoMateria({ ...materia, index });
-    setShowModalAdicionarMateria(true);
-  };  
-
-  const handleSaveMateria = () => {
-    const materiasRef = ref(db, `usuarios/${userId}/materias`);
-
-    if (novaMateria.nome && novaMateria.descricao) {
-      if (editandoMateria) {
-        // Atualiza no Firebase (assumindo que cada matéria tem um ID)
-        const key = editandoMateria.id; // ou use o index para acessar direto em Object.keys se necessário
-        const materiaRef = ref(db, `usuarios/${userId}/materias/${key}`);
-        set(materiaRef, novaMateria)
-          .then(() => {
-            const novas = [...materias];
-            novas[editandoMateria.index] = novaMateria;
-            setMaterias(novas);
-            setShowModalAdicionarMateria(false);
-            setNovaMateria({ nome: '', descricao: '' });
-            setEditandoMateria(null);
-          })
-          .catch((error) => {
-            console.error('Erro ao atualizar a matéria:', error);
-          });
-      } else {
-        // Cria nova matéria
-        push(materiasRef, novaMateria)
-          .then(() => {
-            setMaterias((prev) => [...prev, novaMateria]);
-            setShowModalAdicionarMateria(false);
-            setNovaMateria({ nome: '', descricao: '' });
-          })
-          .catch((error) => {
-            console.error('Erro ao salvar a matéria:', error);
-          });
-      }
+    const path = `usuarios/${id}/materias`;
+    if (editando) {
+      const { id: mid, index } = editando;
+      await daoMateria.atualizarMateria(db, id, { id: mid, ...novaMateria, criadoEm: Date.now() });
+      setMaterias(prev => prev.map((m, i) => i === index ? { id: mid, ...novaMateria } : m));
     } else {
-      console.error('Por favor, preencha todos os campos.');
+      const key = await daoMateria.criarMateria(db, id, { ...novaMateria, criadoEm: Date.now() });
+      setMaterias(prev => [...prev, { id: key, ...novaMateria }]);
     }
+    setEditando(null);
+    setNovaMateria({ nome: '', descricao: '' });
+    setShowModal(false);
   };
 
-  const handleExcluirMateria = (materia, index) => {
-    const confirmar = window.confirm(`Tem certeza que deseja excluir a matéria "${materia.nome}"?`);
-    if (!confirmar) return;
-
-    const key = materia.id;
-
-    const materiaRef = ref(db, `usuarios/${userId}/materias/${key}`);
-    remove(materiaRef)
-      .then(() => {
-        const novasMaterias = [...materias];
-        novasMaterias.splice(index, 1);
-        setMaterias(novasMaterias);
-      })
-      .catch((error) => {
-        console.error('Erro ao excluir matéria:', error);
-      });
+  const excluirMateria = async (mid, idx) => {
+    if (!window.confirm('Confirma exclusão?')) return;
+    await daoMateria.excluirMateria(db, id, mid);
+    setMaterias(prev => prev.filter((_, i) => i !== idx));
   };
 
-
-  if (!userData) {
-    return <div>Carregando...</div>;
-  }
+  const abrirModalEdicao = (m, idx) => {
+    setEditando({ id: m.id, index: idx });
+    setNovaMateria({ nome: m.nome, descricao: m.descricao });
+    setShowModal(true);
+  };
 
   return (
-    <div>
-      <h2>Bem-vindo, {usuarioData?.nome}!</h2>
-      <p>Email: {usuarioData?.email}</p>
-      <p>Data de Nascimento: {usuarioData?.data_nasc ? formatarData(usuarioData.data_nasc) : 'Não informada'}</p>
+      <div className="home-container">
+        <header>
+          <h2>Bem-vindo, {usuarioData?.nome}!</h2>
+          <button onClick={handleLogout}>Logout</button>
+        </header>
 
-      <h3>Minhas Matérias</h3>
-      <h3>Minhas Matérias</h3>
-      {materias.length > 0 ? (
-        <table>
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Descrição</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {materias.map((materia, index) => (
-              <tr key={index}>
-                <td>{materia.nome}</td>
-                <td>{materia.descricao}</td>
-                <td>
-                  <button onClick={() => handleAdicionarAtividade(materia)}>Atividades</button>
-                  <button onClick={() => handleEditarMateria(materia, index)}>Editar</button>
-                  <button onClick={() => handleExcluirMateria(materia, index)}>Excluir</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <p>Você ainda não tem matérias cadastradas.</p>
-      )}
+        <section>
+          <h3>Minhas Matérias</h3>
+          <button onClick={() => setShowModal(true)}>+ Nova Matéria</button>
 
-
-      <button onClick={() => setShowModalAdicionarMateria(true)}>Adicionar Matéria</button>
-      <button onClick={handleLogout}>Logout</button>
-
-      {/* Modal Adicionar matéria */}
-      {showModalAdicionarMateria && (
-        <div className="modal">
-          <div className="modal-content">
-            <span className="close" onClick={() => setShowModalAdicionarMateria(false)}>&times;</span>
-            <h3>Adicionar Nova Matéria</h3>
-            <form>
-              <div>
-                <label>Nome:</label>
-                <input
-                  type="text"
-                  name="nome"
-                  value={novaMateria.nome}
-                  onChange={handleMateriaChange}
-                />
+        </section>
+        {showModal && (
+            <div className="modal">
+              <div className="modal-content">
+                <h4>{editando ? 'Editar Matéria' : 'Nova Matéria'}</h4>
+                <label>
+                  Nome:
+                  <input
+                      value={novaMateria.nome}
+                      onChange={e => setNovaMateria(p => ({ ...p, nome: e.target.value }))}
+                  />
+                </label>
+                <label>
+                  Descrição:
+                  <input
+                      value={novaMateria.descricao}
+                      onChange={e => setNovaMateria(p => ({ ...p, descricao: e.target.value }))}
+                  />
+                </label>
+                <div>
+                  <button onClick={salvarMateria}>Salvar</button>
+                  <button onClick={() => { setShowModal(false); setEditando(null); }}>Cancelar</button>
+                </div>
               </div>
-              <div>
-                <label>Descrição:</label>
-                <input
-                  type="text"
-                  name="descricao"
-                  value={novaMateria.descricao}
-                  onChange={handleMateriaChange}
-                />
+            </div>
+        )}
+
+
+        <section className="cards-container">
+          {materias.map((m, i) => (
+              <div key={m.id} className="card">
+                <h3>{m.nome}</h3>
+                <p>{m.descricao}</p>
+                <button onClick={() => navigate(`/home/${id}/materia/${m.id}`)}>
+                  Ver Detalhes
+                </button>
               </div>
-              <button type="button" onClick={handleSaveMateria}>Salvar</button>
-              <button type="button" onClick={() => setShowModalAdicionarMateria(false)}>Cancelar</button>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
+          ))}
+        </section>
+
+        {/* Modal de criação/edição permanece igual */}
+      </div>
+
+
   );
 }

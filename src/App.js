@@ -1,16 +1,17 @@
-import { Routes, Route } from 'react-router-dom';
-import Login from './pages/Login';
-import Cadastro from './pages/Cadastro';
-import Home from './pages/Home';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import Login    from './pages/Login.jsx';
+import Cadastro from './pages/Cadastro.jsx';
+import Home     from './pages/Home.jsx';
+import Materia  from './pages/Materia.jsx';
 
-function App() {
-  return (
-    <Routes>
-      <Route path="/" element={<Login />} />
-      <Route path="/cadastro" element={<Cadastro />} />
-      <Route path="/home" element={<Home />} />
-    </Routes>
-  );
+export default function App() {
+    return (
+        <Routes>
+            <Route path="/" element={<Login />} />
+            <Route path="/cadastro" element={<Cadastro />} />
+            <Route path="/home/:id" element={<Home />} />
+            <Route path="/home/:id/materia/:materiaId" element={<Materia />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+    );
 }
-
-export default App;
