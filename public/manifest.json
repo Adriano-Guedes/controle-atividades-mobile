@@ -3,7 +3,7 @@
   "name": "Meu Aplicativo PWA",
   "icons": [
     {
-      "src": "icons/book-128.pg",
+      "src": "icons/book-128.png",
       "type": "image/png",
       "sizes": "128x128"
     },
@@ -13,8 +13,13 @@
       "sizes": "512x512"
     }
   ],
-  "start_url": "https://controle-atividades-mobile.vercel.app/",
+  "start_url": ".",
   "display": "standalone",
   "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "background_color": "#ffffff",
+  "description": "Descrição do seu app PWA",
+  "id": "/",
+  "launch_handler": {
+    "client_mode": "auto"
+  }
 }
