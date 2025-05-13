@@ -1,4 +1,4 @@
-// src/serviceWorkerRegistration.js
+//src/serviceWorkerRegistration.js
 
 // Esse é o service worker padrão do CRA
 const isLocalhost = Boolean(
