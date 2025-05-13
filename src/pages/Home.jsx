@@ -80,7 +80,6 @@ export default function Home() {
     if (!novaMateria.nome || !novaMateria.descricao) {
       return alert("Preencha todos os campos");
     }
-    const path = `usuarios/${id}/materias`;
     if (editando) {
       const { id: mid, index } = editando;
       await daoMateria.atualizarMateria(db, id, {

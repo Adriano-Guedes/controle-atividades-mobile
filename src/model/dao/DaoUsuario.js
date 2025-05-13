@@ -1,6 +1,4 @@
-import { getDatabase, ref, query, onValue, onChildAdded, orderByChild, child, get, set, remove, runTransaction }
-  from 'firebase/database';
-
+import { getDatabase, ref, query, child, get, set, remove, runTransaction } from 'firebase/database';
 import Usuario from "../Usuario.js";
 import ModelError from "../ModelError.js";
 
@@ -29,11 +27,14 @@ export default class DaoUsuario {
     let connectionDB = await this.obterConexao();
     return new Promise((resolve, reject) => {
       let dbRefUsuarios = ref(connectionDB, 'usuarios');
-      runTransaction(dbRefUsuarios, () => {
+      runTransaction(dbRefUsuarios, async () => {
         let dbRefNovoUsuario = child(dbRefUsuarios, usuario.getId());
-        return set(dbRefNovoUsuario, usuario)
-          .then(() => resolve(true))
-          .catch(erro => reject(erro));
+        try {
+          await set(dbRefNovoUsuario, usuario);
+          return resolve(true);
+        } catch (erro) {
+          return reject(erro);
+        }
       });
     });
   }

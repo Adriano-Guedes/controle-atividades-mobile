@@ -1,4 +1,4 @@
-import ModelError from "../ModelError.js";
+import ModelError from "./ModelError.js";
 
 export default class Materia {
   constructor(nome, descricao, usuario) {
@@ -12,7 +12,7 @@ export default class Materia {
   }
 
   setNome(nome) {
-    //Materia.validarNome(nome);
+    Materia.validarNome(nome);
     this.nome = nome;
   }
 
@@ -21,7 +21,7 @@ export default class Materia {
   }
 
   setDescricao(descricao) {
-    //Materia.validarDescricao(descricao);
+    Materia.validarDescricao(descricao);
     this.descricao = descricao;
   }
 
@@ -30,7 +30,7 @@ export default class Materia {
   }
 
   setUsuario(usuario) {
-    //Materia.validarUsuario(usuario);
+    Materia.validarUsuario(usuario);
     this.usuario = usuario;
   }
 

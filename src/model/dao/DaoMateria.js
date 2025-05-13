@@ -1,42 +1,70 @@
-import { ref, get, push, set, remove } from 'firebase/database';
-import MateriaDTO from '../MateriaDTO.js';
+import { getDatabase, ref, get, push, set, remove } from "firebase/database";
+import Materia from "../Materia.js";
+import ModelError from "../ModelError.js";
+
 
 export default class DaoMateria {
-  async obterMateriaPorId(db, uid, mid) {
-    const snap = await get(ref(db, `usuarios/${uid}/materias/${mid}`));
-    if (!snap.exists()) throw new Error('Matéria não encontrada');
-    const val = snap.val();
-    return new MateriaDTO(mid, val.nome, val.descricao, val.criadoEm);
+  static promessaConexao = null;
+
+  constructor() {
+    this.obterConexao();
   }
 
+  async obterConexao() {
+    if (DaoMateria.promessaConexao == null) {
+      DaoMateria.promessaConexao = new Promise((resolve, reject) => {
+        const db = getDatabase();
+        if (db) resolve(db);
+        else
+          reject(
+            new ModelError("Não foi possível estabelecer conexão com o BD")
+          );
+      });
+    }
+    return DaoMateria.promessaConexao;
+  }
 
-  async obterMateriasPorUsuario(db, uid) {
-    const snap = await get(ref(db, `usuarios/${uid}/materias`));
+  async obterMateriaPorId(userId, materiaId) {
+    let connectionDB = await this.obterConexao();
+    const snap = await get(
+      ref(connectionDB, `usuarios/${userId}/materias/${materiaId}`)
+    );
+    if (!snap.exists()) throw new Error("Matéria não encontrada");
+    const val = snap.val();
+    return new Materia(materiaId, val.nome, val.descricao, val.criadoEm);
+  }
+
+  async obterMateriasPorUsuario(userId) {
+    let connectionDB = await this.obterConexao();
+    const snap = await get(ref(connectionDB, `usuarios/${userId}/materias`));
     if (!snap.exists()) return [];
     const obj = snap.val();
     return Object.entries(obj).map(
-        ([key, val]) => new MateriaDTO(key, val.nome, val.descricao, val.criadoEm)
+      ([key, val]) => new Materia(key, val.nome, val.descricao, val.criadoEm)
     );
   }
 
-  async criarMateria(db, uid, materiaDTO) {
-    const res = await push(ref(db, `usuarios/${uid}/materias`), {
-      nome: materiaDTO.nome,
-      descricao: materiaDTO.descricao,
-      criadoEm: materiaDTO.criadoEm
+  async criarMateria(userId, materia) {
+    let connectionDB = await this.obterConexao();
+    const res = await push(ref(connectionDB, `usuarios/${userId}/materias`), {
+      nome: materia.nome,
+      descricao: materia.descricao,
+      criadoEm: materia.criadoEm,
     });
     return res.key;
   }
 
-  async atualizarMateria(db, uid, materiaDTO) {
-    await set(ref(db, `usuarios/${uid}/materias/${materiaDTO.id}`), {
-      nome: materiaDTO.nome,
-      descricao: materiaDTO.descricao,
-      criadoEm: materiaDTO.criadoEm
+  async atualizarMateria(userId, materia) {
+    let connectionDB = await this.obterConexao();
+    await set(ref(connectionDB, `usuarios/${userId}/materias/${materia.id}`), {
+      nome: materia.nome,
+      descricao: materia.descricao,
+      criadoEm: materia.criadoEm,
     });
   }
 
-  async excluirMateria(db, uid, mid) {
-    await remove(ref(db, `usuarios/${uid}/materias/${mid}`));
+  async excluirMateria(userId, materiaId) {
+    let connectionDB = await this.obterConexao();
+    await remove(ref(connectionDB, `usuarios/${userId}/materias/${materiaId}`));
   }
 }
