@@ -1,16 +1,15 @@
 export default class Registro {
-    constructor(data, hora, atividade) {
+    constructor(data, hora) {
         this.data = data;
         this.hora = hora;
-        this.atividade = atividade;
     }
 
     getData() {
         return this.data;
     }
 
-    setData() {
-        //Registro.validarData(data);
+    setData(data) {
+        Registro.validarData(data);
         this.data = data; 
     }
 
@@ -18,18 +17,9 @@ export default class Registro {
         return this.hora;
     }
 
-    setHora() {
-        //Registro.validarHora(hora);
+    setHora(hora) {
+        Registro.validarHora(hora);
         this.hora = hora; 
-    }
-
-    getAtividade() {
-        return this.atividade;
-    }
-
-    setAtividade() {
-        //Registro.validarAtividade(atividade);
-        this.atividade = atividade; 
     }
 
     static validarData(data) {

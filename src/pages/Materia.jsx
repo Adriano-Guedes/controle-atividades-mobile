@@ -6,8 +6,7 @@ import { getDatabase } from 'firebase/database';
 import DaoMateria from '../model/dao/DaoMateria.js';
 import DaoAssunto from '../model/dao/DaoAssunto.js';
 import DaoRegistro from '../model/dao/DaoRegistro.js';
-import MateriaDTO from '../model/MateriaDTO';
-import AssuntoDTO from '../model/AssuntoDTO';
+import Assunto from '../model/Assunto.js';
 
 export default function Materia() {
     const { id, materiaId } = useParams();
@@ -60,7 +59,7 @@ export default function Materia() {
 
     const salvarAssunto = async () => {
         if (!novaAssunto.trim()) return;
-        const key = await daoAssunto.criar(db, id, materiaId, new (await import('../model/AssuntoDTO.js')).default(null, novaAssunto));
+        const key = await daoAssunto.criar(db, id, materiaId, new Assunto(novaAssunto, Date.now()));
         setAssuntos(prev => [...prev, { id: key, nome: novaAssunto }]);
         fecharModalAssunto();
     };

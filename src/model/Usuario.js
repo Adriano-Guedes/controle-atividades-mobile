@@ -12,7 +12,7 @@ export default class Usuario {
   }
 
   setNome(nome) {
-    //Usuario.validarNome(nome);
+    Usuario.validarNome(nome);
     this.nome = nome;
   }
 
@@ -21,7 +21,7 @@ export default class Usuario {
   }
 
   setDataNasc(data_nasc) {
-    //Usuario.validarDataNasc(data_nasc);
+    Usuario.validarDataNasc(data_nasc);
     this.data_nasc = data_nasc;
   }
 
@@ -30,7 +30,7 @@ export default class Usuario {
   }
 
   setEmail(email) {
-    //Usuario.validarEmail(email);
+    Usuario.validarEmail(email);
     this.email = email;
   }
 
