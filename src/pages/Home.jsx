@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo } from "react";
 import { useParams, Navigate, useNavigate } from "react-router-dom";
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 import { getDatabase } from "firebase/database";
-import DaoUsuario from "../model/dao/DaoUsuario.js";
-import DaoMateria from "../model/dao/DaoMateria.js";
+import Usuario from "../model/usuario/Usuario.js";
+import DaoUsuario from "../model/usuario/DaoUsuario.js";
+import DaoMateria from "../model/materia/DaoMateria.js";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 export default function Home() {
@@ -17,12 +18,15 @@ export default function Home() {
 
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
-  const [usuarioData, setUsuarioData] = useState(null);
   const [materias, setMaterias] = useState([]);
   const [showModalCriarEditarMateria, setShowModalCriarEditarMateria] = useState(false);
   const [showModalDadosUsuario, setShowModalDadosUsuario] = useState(false);
   const [novaMateria, setNovaMateria] = useState({ nome: "", descricao: "" });
-  const [dadosUsuario, setDadosUsuario] = useState({ nome: "", email: "", data_nasc: ""});
+  const [dadosUsuario, setDadosUsuario] = useState({
+    nome: "",
+    email: "",
+    data_nasc: "",
+  });
   const [editando, setEditando] = useState(null);
 
   useEffect(() => {
@@ -30,10 +34,13 @@ export default function Home() {
       if (u && u.uid === id) {
         setUser(u);
         try {
-          const perfil = await daoUsuario.obterUsuarioPeloId(u.uid);
-          setUsuarioData(perfil);
-          const mats = await daoMateria.obterMateriasPorUsuario(db, u.uid);
+          var dados = await daoUsuario.obterUsuarioPeloId(u.uid);
+          var perfil = new Usuario(dados.nome, dados.data_nasc, dados.email);
+          setUser(perfil);
+          const mats = await daoMateria.obterMateriasPorUsuario(u.uid);
+          console.log("mats = ", mats)
           setMaterias(mats);
+          console.log("materias = ", materias)
         } catch (e) {
           console.error(e);
         }
@@ -55,17 +62,21 @@ export default function Home() {
 
   const alterarDadosUsuario = async () => {
     setLoading(true);
-  
+
     try {
-      if (!dadosUsuario.nome || !dadosUsuario.email || !dadosUsuario.data_nasc) {
+      if (
+        !dadosUsuario.nome ||
+        !dadosUsuario.email ||
+        !dadosUsuario.data_nasc
+      ) {
         alert("Preencha todos os campos");
         return;
       }
-  
+
       await daoUsuario.alterar(dadosUsuario);
-  
+
       const perfil = await daoUsuario.obterUsuarioPeloId(user.uid);
-      setUsuarioData(perfil);
+      //setuser(perfil);
     } catch (error) {
       console.error("Erro ao alterar dados do usuário:", error);
       alert("Erro ao atualizar os dados. Tente novamente.");
@@ -73,7 +84,6 @@ export default function Home() {
       setLoading(false);
     }
   };
-  
 
   const salvarMateria = async () => {
     setLoading(true);
@@ -126,7 +136,7 @@ export default function Home() {
           class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-body-emphasis text-decoration-none"
         >
           {" "}
-          <span class="fs-4">{usuarioData?.nome}</span>{" "}
+          <span class="fs-4">{user?.nome}</span>{" "}
         </a>{" "}
         <ul class="nav nav-pills">
           {" "}
@@ -147,14 +157,16 @@ export default function Home() {
           <div class="col-sm-10 mb-3 mb-sm-0">
             <h3>Minhas Matérias</h3>
           </div>
-          <div class="col-sm-2 mb-3 mb-sm-0">
-            <button
-              onClick={() => setShowModalCriarEditarMateria(true)}
-              type="button"
-              class="btn btn-success"
-            >
-              Nova Matéria
-            </button>
+          <div className="col-sm-2 mb-3 mb-sm-0">
+            {user?.nome === "adriano" && (
+              <button
+                onClick={() => setShowModalCriarEditarMateria(true)}
+                type="button"
+                className="btn btn-success"
+              >
+                Nova Matéria
+              </button>
+            )}
           </div>
         </div>
       </section>
