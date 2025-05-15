@@ -3,10 +3,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, Navigate, useNavigate } from 'react-router-dom';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
-import DaoMateria from '../model/dao/DaoMateria.js';
-import DaoAssunto from '../model/dao/DaoAssunto.js';
-import DaoRegistro from '../model/dao/DaoRegistro.js';
-import Assunto from '../model/Assunto.js';
+import DaoMateria from '../model/materia/DaoMateria.js';
+import DaoAssunto from '../model/assunto/DaoAtividade.js';
+import DaoRegistro from '../model/registro/DaoRegistro.js';
+import Assunto from '../model/assunto/Atividade.js';
 
 export default function Materia() {
     const { id, materiaId } = useParams();

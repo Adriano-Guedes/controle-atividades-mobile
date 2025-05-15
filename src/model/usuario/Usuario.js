@@ -1,9 +1,9 @@
-import ModelError from "./ModelError.js";
+import ModelError from "../ModelError.js";
 
 export default class Usuario {
-  constructor(nome, data_nasc, email) {
+  constructor(nome, dataNasc, email) {
     this.setNome(nome);
-    this.setDataNasc(data_nasc);
+    this.setDataNasc(dataNasc);
     this.setEmail(email);
   }
 
@@ -17,12 +17,13 @@ export default class Usuario {
   }
 
   getDataNasc() {
-    return this.data_nasc;
+    return this.dataNasc;
   }
 
-  setDataNasc(data_nasc) {
-    Usuario.validarDataNasc(data_nasc);
-    this.data_nasc = data_nasc;
+  setDataNasc(dataNasc) {
+    var data = formatarData(dataNasc)
+    Usuario.validarDataNasc(data);
+    this.dataNasc = data;
   }
 
   getEmail() {
@@ -41,9 +42,6 @@ export default class Usuario {
       throw new ModelError("O nome do usuário não pode ser nulo!");
     if (nome.length > 40)
       throw new ModelError("O nome do usuário deve ter até 40 caracteres!");
-    const padraoNome = /^[A-Za-zÀ-ÖØ-öø-ÿ\s']+$/;
-    if (!padraoNome.test(nome))
-      throw new ModelError("O nome do usuário só pode conter letras!");
   }
 
   // -------------------------------------------------------------------
@@ -87,4 +85,20 @@ export default class Usuario {
       throw new ModelError("Idade fora do intervalo permitido!");
     }
   }
+}
+
+function formatarData(dataStr) {
+  const formatoBanco = /^\d{4}[-/]\d{2}[-/]\d{2}$/;
+  const formatoFinal = /^\d{2}\/\d{2}\/\d{4}$/;
+
+  if (formatoFinal.test(dataStr)) {
+    return dataStr;
+  }
+
+  if (formatoBanco.test(dataStr)) {
+    const [ano, mes, dia] = dataStr.split(/[-/]/);
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  return '';
 }

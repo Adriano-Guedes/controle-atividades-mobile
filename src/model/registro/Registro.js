@@ -1,7 +1,9 @@
+import ModelError from "../ModelError";
+
 export default class Registro {
-    constructor(data, hora) {
+    constructor(data, horas) {
         this.data = data;
-        this.hora = hora;
+        this.horas = horas;
     }
 
     getData() {
@@ -9,17 +11,17 @@ export default class Registro {
     }
 
     setData(data) {
-        Registro.validarData(data);
+        //Registro.validarData(data);
         this.data = data; 
     }
 
-    getHora() {
-        return this.hora;
+    getHoras() {
+        return this.horas;
     }
 
-    setHora(hora) {
-        Registro.validarHora(hora);
-        this.hora = hora; 
+    setHoras(horas) {
+        Registro.validarHoras(horas);
+        this.horas = horas; 
     }
 
     static validarData(data) {
@@ -41,5 +43,9 @@ export default class Registro {
             dataObj.getFullYear() === ano &&
             idade >= 0 && idade <= 130
         );
+    }
+
+    static validarHoras(horas){
+        if(horas<=0) throw new ModelError("Quantidade de horas deve ser maior que 0!");;
     }
 }

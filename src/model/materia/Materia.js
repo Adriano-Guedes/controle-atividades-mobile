@@ -1,10 +1,9 @@
-import ModelError from "./ModelError.js";
+import ModelError from "../ModelError.js";
 
 export default class Materia {
-  constructor(nome, descricao, usuario) {
+  constructor(nome, descricao) {
     this.setNome(nome);
     this.setDescricao(descricao);
-    this.setUsuario(usuario);
   }
 
   getNome() {
@@ -23,15 +22,6 @@ export default class Materia {
   setDescricao(descricao) {
     Materia.validarDescricao(descricao);
     this.descricao = descricao;
-  }
-
-  getUsuario() {
-    return this.usuario;
-  }
-
-  setUsuario(usuario) {
-    Materia.validarUsuario(usuario);
-    this.usuario = usuario;
   }
 
   // --------------------------------------------------------
