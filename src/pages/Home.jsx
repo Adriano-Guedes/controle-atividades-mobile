@@ -1,7 +1,6 @@
-import { useState, useEffect, useMemo, use } from "react";
-import { useParams, Navigate, useNavigate } from "react-router-dom";
-import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
-import UsuarioID from "../model/usuario/UsuarioId.js";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import DaoUsuario from "../model/usuario/DaoUsuario.js";
 import {
   NotificationContainer,
@@ -10,11 +9,13 @@ import {
   notifySuccess,
 } from "../components/notification.js";
 import LoadingModal from "../components/LoadingModal";
+import Header from "../components/Header";
+import UseAppActions from "../hooks/useAppActions";
 
 export default function Home() {
   const { id } = useParams();
   const auth = getAuth();
-  const navigate = useNavigate();
+  const appActions = UseAppActions();
   const daoUsuario = new DaoUsuario();
   const [user, setUser] = useState({
     id: "",
@@ -37,7 +38,7 @@ export default function Home() {
       if (u && u.uid === id) {
         setUser(u);
         try {
-          var dados = await daoUsuario.consultarPorId(u.uid);
+          var dados = await daoUsuario.consultarPorId(id);
           setUser({
             id: dados.id,
             nome: dados.nome,
@@ -46,19 +47,15 @@ export default function Home() {
           });
         } catch (error) {
           notifyError(error.message);
+          appActions.handleLogout();
         }
       } else {
-        handleLogout();
+        appActions.handleLogout();
       }
       setLoading(false);
     });
     return () => unsub();
   }, [auth, id]);
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    navigate("/");
-  };
 
   const salvarMudancas = async () => {
     try {
@@ -93,53 +90,30 @@ export default function Home() {
     setModalDadosUsuario(true);
   };
 
-  const irParaMaterias = () => {
-    navigate(`/home/${user.id}/materia`);
-  };
-
   function formatarDataParaISO(data) {
-    // Verifica se já está no formato ISO (yyyy-mm-dd)
     const regexISO = /^\d{4}-\d{2}-\d{2}$/;
     if (regexISO.test(data)) {
       return data;
     }
-  
-    // Caso contrário, tenta converter de dd/mm/yyyy
     const regexBR = /^\d{2}\/\d{2}\/\d{4}$/;
     if (regexBR.test(data)) {
       const [dia, mes, ano] = data.split("/");
       return `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
     }
-  
-    // Se não for nenhum dos formatos esperados, retorna string vazia ou lança erro
     console.warn("Formato de data inválido:", data);
     return "";
   }
-  
-  
+
 
   return (
     <>
       <div className="container">
-        <header className="d-flex flex-wrap justify-content-center py-3 mb-4 border-bottom">
-          <a
-            onClick={(e) => e.preventDefault()}
-            className="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-body-emphasis text-decoration-none"
-          >
-            <span className="fs-4">{user.nome}</span>
-          </a>
-          <ul className="nav nav-pills">
-            <li className="nav-item">
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={() => handleLogout()}
-              >
-                Sair
-              </button>
-            </li>
-          </ul>
-        </header>
+      <Header
+        nomeUsuario={user.nome}
+        onLogout={() => appActions.handleLogout()}
+        goToMaterias={() => appActions.goToMaterias(user.id)}
+        goToHome={() => appActions.goToHome(user.id)}
+        />
 
         <div className="row g-4 py-5 row-cols-1 row-cols-lg-3">
           <div className="col d-flex align-items-start">
@@ -159,7 +133,7 @@ export default function Home() {
               <h3 className="fs-2 text-body-emphasis">Matérias</h3>
               <p>Ir para a listagem de matérias do usuário.</p>
               <button
-                onClick={() => irParaMaterias()}
+                onClick={() => appActions.goToMaterias(user.id)}
                 className="btn btn-primary"
               >
                 Acessar
