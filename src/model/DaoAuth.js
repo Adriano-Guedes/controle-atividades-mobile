@@ -1,25 +1,27 @@
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { ref, set } from "firebase/database";
-import { auth, database } from "../firebaseConfig";
+import { auth, database } from "../services/firebase";
 import Usuario from "./usuario/Usuario";
 
 export default class DaoAuth {
   async cadastrarUsuario(email, senha, nome, dataNasc) {
     try {
+      if (!email || !senha || !nome || !dataNasc) {
+        throw new Error("Todos os campos são obrigatórios.");
+      }
       const newUsuario = new Usuario(nome, dataNasc, email);
-      const userCredential = await createUserWithEmailAndPassword(auth, newUsuario.email, newUsuario.senha);
+      const userCredential = await createUserWithEmailAndPassword(auth, newUsuario.email, senha);
       const user = userCredential.user;
 
       await set(ref(database, `usuarios/${user.uid}`), {
         nome: newUsuario.nome,
         dataNasc: newUsuario.dataNasc,
-        email: newUsuario.email,
+        email: newUsuario.email
       });
 
       return user.uid;
     } catch (error) {
-      console.error("Erro ao cadastrar usuário:", error.message);
-      throw new Error("Não foi possível cadastrar o usuário.");
+      throw new Error(error);
     }
   }
 
@@ -28,7 +30,7 @@ export default class DaoAuth {
       const cred = await signInWithEmailAndPassword(auth, email, senha);
       return cred.user.uid;
     } catch (error) {
-      console.error("Erro no login:", error.message);
+      console.error("Erro no login:", error);
       throw new Error("Email ou senha inválidos.");
     }
   }

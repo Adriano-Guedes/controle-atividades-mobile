@@ -1,375 +1,282 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, use } from "react";
 import { useParams, Navigate, useNavigate } from "react-router-dom";
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
-import { getDatabase } from "firebase/database";
-import Usuario from "../model/usuario/Usuario.js";
+import UsuarioID from "../model/usuario/UsuarioId.js";
 import DaoUsuario from "../model/usuario/DaoUsuario.js";
-import DaoMateria from "../model/materia/DaoMateria.js";
-import "bootstrap/dist/css/bootstrap.min.css";
+import {
+  NotificationContainer,
+  notifyWarning,
+  notifyError,
+  notifySuccess,
+} from "../components/notification.js";
+import LoadingModal from "../components/LoadingModal";
 
 export default function Home() {
   const { id } = useParams();
   const auth = getAuth();
-  const db = getDatabase();
   const navigate = useNavigate();
-
-  const daoUsuario = useMemo(() => new DaoUsuario(), []);
-  const daoMateria = useMemo(() => new DaoMateria(), []);
-
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
-  const [materias, setMaterias] = useState([]);
-  const [showModalCriarEditarMateria, setShowModalCriarEditarMateria] = useState(false);
-  const [showModalDadosUsuario, setShowModalDadosUsuario] = useState(false);
-  const [novaMateria, setNovaMateria] = useState({ nome: "", descricao: "" });
-  const [dadosUsuario, setDadosUsuario] = useState({
+  const daoUsuario = new DaoUsuario();
+  const [user, setUser] = useState({
+    id: "",
+    nome: "",
+    dataNasc: "",
+    email: "",
+  });
+  const [modalDadosUsuario, setModalDadosUsuario] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [modoEdicao, setModoEdicao] = useState(false);
+  const [dadosEditaveis, setDadosEditaveis] = useState({
     nome: "",
     email: "",
-    data_nasc: "",
+    dataNasc: "",
   });
-  const [editando, setEditando] = useState(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
+      setLoading(true);
       if (u && u.uid === id) {
         setUser(u);
         try {
-          var dados = await daoUsuario.obterUsuarioPeloId(u.uid);
-          var perfil = new Usuario(dados.nome, dados.data_nasc, dados.email);
-          setUser(perfil);
-          const mats = await daoMateria.obterMateriasPorUsuario(u.uid);
-          console.log("mats = ", mats)
-          setMaterias(mats);
-          console.log("materias = ", materias)
-        } catch (e) {
-          console.error(e);
+          var dados = await daoUsuario.consultarPorId(u.uid);
+          setUser({
+            id: dados.id,
+            nome: dados.nome,
+            dataNasc: dados.dataNasc,
+            email: dados.email,
+          });
+        } catch (error) {
+          notifyError(error.message);
         }
       } else {
-        setUser(null);
+        handleLogout();
       }
       setLoading(false);
     });
     return () => unsub();
-  }, [auth, id, daoUsuario, daoMateria, db]);
-
-  //if (loading) setLoading(true);
-  if (!user) navigate("/");
+  }, [auth, id]);
 
   const handleLogout = async () => {
     await signOut(auth);
     navigate("/");
   };
 
-  const alterarDadosUsuario = async () => {
-    setLoading(true);
-
+  const salvarMudancas = async () => {
     try {
+      setLoading(true);
       if (
-        !dadosUsuario.nome ||
-        !dadosUsuario.email ||
-        !dadosUsuario.data_nasc
+        !dadosEditaveis.nome ||
+        !dadosEditaveis.email ||
+        !dadosEditaveis.dataNasc
       ) {
-        alert("Preencha todos os campos");
+        notifyWarning("Preencha todos os campos!");
         return;
       }
-
-      await daoUsuario.alterar(dadosUsuario);
-
-      const perfil = await daoUsuario.obterUsuarioPeloId(user.uid);
-      //setuser(perfil);
+      await daoUsuario.editar(user.id, dadosEditaveis);
+      setUser({ ...user, ...dadosEditaveis });
+      setModoEdicao(false);
+      setModalDadosUsuario(false);
+      notifySuccess("Dados atualizados!");
     } catch (error) {
-      console.error("Erro ao alterar dados do usuário:", error);
-      alert("Erro ao atualizar os dados. Tente novamente.");
+      notifyError(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const salvarMateria = async () => {
-    setLoading(true);
-    if (!novaMateria.nome || !novaMateria.descricao) {
-      return alert("Preencha todos os campos");
-    }
-    if (editando) {
-      const { id: mid, index } = editando;
-      await daoMateria.atualizarMateria(db, id, {
-        id: mid,
-        ...novaMateria,
-        criadoEm: Date.now(),
-      });
-      setMaterias((prev) =>
-        prev.map((m, i) => (i === index ? { id: mid, ...novaMateria } : m))
-      );
-    } else {
-      const key = await daoMateria.criarMateria(db, id, {
-        ...novaMateria,
-        criadoEm: Date.now(),
-      });
-      setMaterias((prev) => [...prev, { id: key, ...novaMateria }]);
-    }
-    setEditando(null);
-    setNovaMateria({ nome: "", descricao: "" });
-    setShowModalCriarEditarMateria(false);
-    setLoading(false);
+  const abrirModal = () => {
+    setDadosEditaveis({
+      nome: user.nome,
+      email: user.email,
+      dataNasc: formatarDataParaISO(user.dataNasc),
+    });
+    setModoEdicao(false);
+    setModalDadosUsuario(true);
   };
 
-  const excluirMateria = async (mid, idx) => {
-    setLoading(true);
-    if (!window.confirm("Confirma exclusão?")) return;
-    await daoMateria.excluirMateria(db, id, mid);
-    setMaterias((prev) => prev.filter((_, i) => i !== idx));
-    setLoading(false);
+  const irParaMaterias = () => {
+    navigate(`/home/${user.id}/materia`);
   };
 
-  const abrirModalEdicao = (m, idx) => {
-    setEditando({ id: m.id, index: idx });
-    setNovaMateria({ nome: m.nome, descricao: m.descricao });
-    setShowModalCriarEditarMateria(true);
-  };
+  function formatarDataParaISO(data) {
+    // Verifica se já está no formato ISO (yyyy-mm-dd)
+    const regexISO = /^\d{4}-\d{2}-\d{2}$/;
+    if (regexISO.test(data)) {
+      return data;
+    }
+  
+    // Caso contrário, tenta converter de dd/mm/yyyy
+    const regexBR = /^\d{2}\/\d{2}\/\d{4}$/;
+    if (regexBR.test(data)) {
+      const [dia, mes, ano] = data.split("/");
+      return `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+    }
+  
+    // Se não for nenhum dos formatos esperados, retorna string vazia ou lança erro
+    console.warn("Formato de data inválido:", data);
+    return "";
+  }
+  
+  
 
   return (
-    <div className="container">
-      <header class="d-flex flex-wrap justify-content-center py-3 mb-4 border-bottom">
-        {" "}
-        <a
-          onClick={(e) => e.preventDefault()}
-          class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-body-emphasis text-decoration-none"
-        >
-          {" "}
-          <span class="fs-4">{user?.nome}</span>{" "}
-        </a>{" "}
-        <ul class="nav nav-pills">
-          {" "}
-          <li class="nav-item">
-            <button
-              type="button"
-              class="btn btn-primary btn-sm"
-              onClick={handleLogout}
-            >
-              Sair
-            </button>
-          </li>{" "}
-        </ul>{" "}
-      </header>
-
-      <section>
-        <div class="row">
-          <div class="col-sm-10 mb-3 mb-sm-0">
-            <h3>Minhas Matérias</h3>
-          </div>
-          <div className="col-sm-2 mb-3 mb-sm-0">
-            {user?.nome === "adriano" && (
+    <>
+      <div className="container">
+        <header className="d-flex flex-wrap justify-content-center py-3 mb-4 border-bottom">
+          <a
+            onClick={(e) => e.preventDefault()}
+            className="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-body-emphasis text-decoration-none"
+          >
+            <span className="fs-4">{user.nome}</span>
+          </a>
+          <ul className="nav nav-pills">
+            <li className="nav-item">
               <button
-                onClick={() => setShowModalCriarEditarMateria(true)}
                 type="button"
-                className="btn btn-success"
+                className="btn btn-primary btn-sm"
+                onClick={() => handleLogout()}
               >
-                Nova Matéria
+                Sair
               </button>
-            )}
+            </li>
+          </ul>
+        </header>
+
+        <div className="row g-4 py-5 row-cols-1 row-cols-lg-3">
+          <div className="col d-flex align-items-start">
+            <div className="icon-square text-body-emphasis bg-body-secondary d-inline-flex align-items-center justify-content-center fs-4 flex-shrink-0 me-3"></div>
+            <div>
+              <h3 className="fs-2 text-body-emphasis">Dados usuário</h3>
+              <p>Visualizar e editar dados do usuário.</p>
+              <button onClick={() => abrirModal()} className="btn btn-primary">
+                Abrir
+              </button>
+            </div>
+          </div>
+
+          <div className="col d-flex align-items-start">
+            <div className="icon-square text-body-emphasis bg-body-secondary d-inline-flex align-items-center justify-content-center fs-4 flex-shrink-0 me-3"></div>
+            <div>
+              <h3 className="fs-2 text-body-emphasis">Matérias</h3>
+              <p>Ir para a listagem de matérias do usuário.</p>
+              <button
+                onClick={() => irParaMaterias()}
+                className="btn btn-primary"
+              >
+                Acessar
+              </button>
+            </div>
           </div>
         </div>
-      </section>
 
-      <div class="row">
-        {materias.map((m, i) => (
-          <div class="col-sm-4 mb-3 mb-sm-0">
-            <div class="card">
-              <div class="card-body" key={m.id}>
-                <h5 class="card-title">{m.nome}</h5>
-                <p class="card-text">{m.descricao}</p>
-                <div className="d-flex gap-2 mt-2">
-                  <button
-                    type="button"
-                    class="btn btn-primary btn-sm"
-                    onClick={() => navigate(`/home/${id}/materia/${m.id}`)}
-                  >
-                    Detalhes
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-secondary btn-sm"
-                    onClick={() => abrirModalEdicao(m, i)}
-                  >
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-danger btn-sm"
-                    onClick={() => excluirMateria(m.id, i)}
-                  >
-                    Excluir
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Modal criar/editar matéria */}
-      {showModalCriarEditarMateria && (
-        <>
+        {modalDadosUsuario && (
           <div
-            className="modal show fade d-block"
-            tabIndex="-1"
-            role="dialog"
-            style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}
-          >
-            <div className="modal-dialog" role="document">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title">
-                    {editando ? "Editar Matéria" : "Nova Matéria"}
-                  </h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => {
-                      setShowModalCriarEditarMateria(false);
-                      setEditando(null);
-                    }}
-                  ></button>
-                </div>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Nome</label>
-                    <input
-                      className="form-control"
-                      value={novaMateria.nome}
-                      onChange={(e) =>
-                        setNovaMateria((p) => ({ ...p, nome: e.target.value }))
-                      }
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Descrição</label>
-                    <input
-                      className="form-control"
-                      value={novaMateria.descricao}
-                      onChange={(e) =>
-                        setNovaMateria((p) => ({
-                          ...p,
-                          descricao: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button onClick={salvarMateria} className="btn btn-primary">
-                    Salvar
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowModalCriarEditarMateria(false);
-                      setEditando(null);
-                    }}
-                    className="btn btn-secondary"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="modal-backdrop fade show"></div>
-        </>
-      )}
-
-      {/* Modal dados usuário */}
-      {showModalDadosUsuario && (
-        <>
-          <div
-            className="modal show fade d-block"
-            tabIndex="-1"
-            role="dialog"
-            style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}
-          >
-            <div className="modal-dialog" role="document">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title">
-                    {editando ? "Editar Matéria" : "Nova Matéria"}
-                  </h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => {
-                      setShowModalDadosUsuario(false);
-                      setEditando(null);
-                    }}
-                  ></button>
-                </div>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Nome</label>
-                    <input
-                      className="form-control"
-                      value={novaMateria.nome}
-                      onChange={(e) =>
-                        setNovaMateria((p) => ({ ...p, nome: e.target.value }))
-                      }
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Descrição</label>
-                    <input
-                      className="form-control"
-                      value={novaMateria.descricao}
-                      onChange={(e) =>
-                        setNovaMateria((p) => ({
-                          ...p,
-                          descricao: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button onClick={salvarMateria} className="btn btn-primary">
-                    Salvar
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowModalDadosUsuario(false);
-                      setEditando(null);
-                    }}
-                    className="btn btn-secondary"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="modal-backdrop fade show"></div>
-        </>
-      )}
-
-      {/* Modal loading */}
-      {loading && (
-        <>
-          <div
-            className="modal show fade d-block"
+            className="modal fade show d-block"
             tabIndex="-1"
             style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
           >
-            <div className="modal-dialog modal-sm modal-dialog-centered">
-              <div className="modal-content text-center p-4">
-                <div
-                  className="spinner-border text-primary mb-3"
-                  role="status"
-                />
-                <h5>Carregando...</h5>
+            <div className="modal-dialog">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h1 className="modal-title fs-5">Dados do usuário</h1>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setModalDadosUsuario(false)}
+                    aria-label="Close"
+                  ></button>
+                </div>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label">Nome</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={dadosEditaveis.nome}
+                      disabled={!modoEdicao}
+                      onChange={(e) =>
+                        setDadosEditaveis({
+                          ...dadosEditaveis,
+                          nome: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Email</label>
+                    <input
+                      type="email"
+                      className="form-control"
+                      value={dadosEditaveis.email}
+                      disabled={!modoEdicao}
+                      onChange={(e) =>
+                        setDadosEditaveis({
+                          ...dadosEditaveis,
+                          email: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Data de Nascimento</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={dadosEditaveis.dataNasc}
+                      disabled={!modoEdicao}
+                      onChange={(e) =>
+                        setDadosEditaveis({
+                          ...dadosEditaveis,
+                          dataNasc: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="modal-footer">
+                  {!modoEdicao ? (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setModoEdicao(true)}
+                    >
+                      Editar
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          setModoEdicao(false);
+                          setDadosEditaveis({
+                            nome: user.nome,
+                            email: user.email,
+                            dataNasc: user.dataNasc,
+                          });
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => salvarMudancas()}
+                      >
+                        Salvar
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-          <div className="modal-backdrop fade show"></div>
-        </>
-      )}
-    </div>
+        )}
+      </div>
+      <NotificationContainer />
+      <LoadingModal visible={loading} text="Aguarde..." />
+    </>
   );
 }

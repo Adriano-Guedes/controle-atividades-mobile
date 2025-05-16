@@ -46,8 +46,8 @@ export default class DaoUsuario {
         dataNasc: updateUsuario.dataNasc,
         email: updateUsuario.email,
       });
+      return await this.consultarPorId(userId);
     } catch (error) {
-      console.error("Erro ao editar usuário:", error);
       throw new Error("Não foi possível editar dados. Tente novamente.");
     }
   }
@@ -69,7 +69,8 @@ export default class DaoUsuario {
       const snapshot = await get(dbRef);
       if (snapshot.exists()) {
         const obj = snapshot.val();
-        return new UsuarioId(snapshot.key, obj.nome, obj.dataNasc, obj.email);
+        const user = new UsuarioId(snapshot.key, obj.nome, obj.dataNasc, obj.email);
+        return user;
       } else {
         return null;
       }

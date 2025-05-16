@@ -1,4 +1,4 @@
-class UsuarioId {
+export  default class UsuarioId {
   constructor(id, nome, dataNasc, email) {
     this.id = id;
     this.nome = nome;

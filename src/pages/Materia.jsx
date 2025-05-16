@@ -4,9 +4,9 @@ import { useParams, Navigate, useNavigate } from 'react-router-dom';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 import DaoMateria from '../model/materia/DaoMateria.js';
-import DaoAssunto from '../model/assunto/DaoAtividade.js';
+import DaoAssunto from '../model/atividade/DaoAtividade.js';
 import DaoRegistro from '../model/registro/DaoRegistro.js';
-import Assunto from '../model/assunto/Atividade.js';
+import Assunto from '../model/atividade/Atividade.js';
 
 export default function Materia() {
     const { id, materiaId } = useParams();
@@ -21,7 +21,7 @@ export default function Materia() {
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState(null);
     const [materia, setMateria] = useState(null);
-    const [assuntos, setAssuntos] = useState([]);
+    const [atividades, setAtividades] = useState([]);
     const [registros, setRegistros] = useState([]);
     const [showAssuntoModal, setShowAssuntoModal] = useState(false);
     const [showRegistroModal, setShowRegistroModal] = useState(false);
@@ -37,7 +37,7 @@ export default function Materia() {
                     const m = await daoMateria.obterMateriaPorId(db, id, materiaId);
                     setMateria(m);
                     const lista = await daoAssunto.listarPorMateria(db, id, materiaId);
-                    setAssuntos(lista);
+                    setAtividades(lista);
                 } catch (e) {
                     console.error(e);
                     setMateria(null);
@@ -60,13 +60,13 @@ export default function Materia() {
     const salvarAssunto = async () => {
         if (!novaAssunto.trim()) return;
         const key = await daoAssunto.criar(db, id, materiaId, new Assunto(novaAssunto, Date.now()));
-        setAssuntos(prev => [...prev, { id: key, nome: novaAssunto }]);
+        setAtividades(prev => [...prev, { id: key, nome: novaAssunto }]);
         fecharModalAssunto();
     };
 
-    const abrirModalRegistro = async (assunto) => {
-        setCurrentAssunto(assunto);
-        const regs = await daoRegistro.listarPorAssunto(db, id, materiaId, assunto.id);
+    const abrirModalRegistro = async (atividade) => {
+        setCurrentAssunto(atividade);
+        const regs = await daoRegistro.listarPorAssunto(db, id, materiaId, atividade.id);
         setRegistros(regs);
         setShowRegistroModal(true);
     };
@@ -90,7 +90,7 @@ export default function Materia() {
                 <h3>Assuntos</h3>
                 <button onClick={abrirModalAssunto}>+ Novo Assunto</button>
                 <ul>
-                    {assuntos.map(a => (
+                    {atividades.map(a => (
                         <li key={a.id}>
                             {a.nome}
                             <button onClick={() => abrirModalRegistro(a)}>Registrar Horas</button>
@@ -106,7 +106,7 @@ export default function Materia() {
                         <input
                             value={novaAssunto}
                             onChange={e => setNovaAssunto(e.target.value)}
-                            placeholder='Nome do assunto'
+                            placeholder='Nome do atividade'
                         />
                         <button onClick={salvarAssunto}>Salvar</button>
                         <button onClick={fecharModalAssunto}>Cancelar</button>
