@@ -1,13 +1,4 @@
-import {
-  getDatabase,
-  ref,
-  query,
-  child,
-  get,
-  set,
-  remove,
-  runTransaction,
-} from "firebase/database";
+import { getDatabase, ref, get, update, remove } from "firebase/database";
 import Usuario from "./Usuario.js";
 import UsuarioId from "./UsuarioId.js";
 import ModelError from "../ModelError.js";
@@ -41,11 +32,13 @@ export default class DaoUsuario {
         usuario.dataNasc,
         usuario.email
       );
-      await set(ref(connectionDB, `usuarios/${userId}`), {
+  
+      await update(ref(connectionDB, `usuarios/${userId}`), {
         nome: updateUsuario.nome,
         dataNasc: updateUsuario.dataNasc,
         email: updateUsuario.email,
       });
+  
       return await this.consultarPorId(userId);
     } catch (error) {
       throw new Error("Não foi possível editar dados. Tente novamente.");

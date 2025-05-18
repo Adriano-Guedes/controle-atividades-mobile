@@ -18,10 +18,19 @@ export default function useAppActions() {
     navigate(`/home/${id}`);
   };
 
+  const goToMateria = (userId, matId) => {
+    navigate(`/home/${userId}/materia/${matId}`);
+  };
+
+  const goToAtividade = (userId, matId, atividadeId) => {
+    navigate(`/home/${userId}/materia/${matId}/atividade/${atividadeId}`);
+  };
 
   return {
     handleLogout,
     goToMaterias,
     goToHome,
+    goToMateria,
+    goToAtividade
   };
 }

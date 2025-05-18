@@ -36,30 +36,32 @@ export default class DaoRegistro {
       if (!snap.exists()) return [];
       const obj = snap.val();
       return Object.entries(obj).map(([key, val]) => {
-        const registro = new Registro(val.data, val.horas);
+        const registro = new Registro(formatarData(val.data), val.horas);
         return new RegistroId(key, registro);
       });
     } catch (error) {
       console.error("Erro ao listar registros por atividade:", error);
       throw new Error("Não foi possível listar os registros. Tente novamente.");
     }
+
+    function formatarData(dataString) {
+      const [ano, mes, dia] = dataString.split("-");
+      return `${dia}/${mes}/${ano}`;
+    }
   }
 
   async criar(userId, materiaId, atividadeId, registro) {
     try {
       let connectionDB = await this.obterConexao();
-      const newRegistro = new Registro(registro.data, registro.horas);
+      const newRegistro = new Registro(registro.data, parseInt(registro.horas));
       const res = await push(
-        ref(
-          connectionDB,
-          `usuarios/${userId}/materias/${materiaId}/atividades/${atividadeId}/registros`
-        ),
+        ref(connectionDB, `usuarios/${userId}/materias/${materiaId}/atividades/${atividadeId}/registros`),
         {
           horas: newRegistro.horas,
-          data: newRegistro.data,
+          data: newRegistro.data
         }
       );
-      return res.key;
+      return new RegistroId(res.key, newRegistro);
     } catch (error) {
       console.error("Erro ao criar registro:", error);
       throw new Error("Não foi possível criar o registro. Tente novamente.");

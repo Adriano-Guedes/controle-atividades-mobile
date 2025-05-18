@@ -1,140 +1,367 @@
-
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, Navigate, useNavigate } from 'react-router-dom';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getDatabase } from 'firebase/database';
-import DaoMateria from '../model/materia/DaoMateria.js';
-import DaoAssunto from '../model/atividade/DaoAtividade.js';
-import DaoRegistro from '../model/registro/DaoRegistro.js';
-import Assunto from '../model/atividade/Atividade.js';
+import { useState, useEffect, useMemo } from "react";
+import { useParams } from "react-router-dom";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import DaoUsuario from "../model/usuario/DaoUsuario.js";
+import DaoMateria from "../model/materia/DaoMateria.js";
+import DaoAtividade from "../model/atividade/DaoAtividade.js";
+import DaoRegistro from "../model/registro/DaoRegistro.js";
+import { NotificationContainer, notifyWarning, notifyError, notifySuccess } from "../components/notification.js";
+import LoadingModal from "../components/LoadingModal";
+import Header from "../components/Header";
+import UseAppActions from "../hooks/useAppActions";
 
 export default function Materia() {
     const { id, materiaId } = useParams();
     const auth = getAuth();
-    const db = getDatabase();
-    const navigate = useNavigate();
-
-    const daoMateria = useMemo(() => new DaoMateria(), []);
-    const daoAssunto = useMemo(() => new DaoAssunto(), []);
-    const daoRegistro = useMemo(() => new DaoRegistro(), []);
-
     const [loading, setLoading] = useState(true);
+    const appActions = UseAppActions();
     const [user, setUser] = useState(null);
     const [materia, setMateria] = useState(null);
     const [atividades, setAtividades] = useState([]);
-    const [registros, setRegistros] = useState([]);
-    const [showAssuntoModal, setShowAssuntoModal] = useState(false);
-    const [showRegistroModal, setShowRegistroModal] = useState(false);
-    const [novaAssunto, setNovaAssunto] = useState('');
-    const [registroHoras, setRegistroHoras] = useState(0);
-    const [currentAssunto, setCurrentAssunto] = useState(null);
+    const daoUsuario = new DaoUsuario();
+    const daoMateria = useMemo(() => new DaoMateria(), []);
+    const daoAtividade = useMemo(() => new DaoAtividade(), []);
+    const daoRegistro = useMemo(() => new DaoRegistro(), []);
+    const [modalDadosMateria, setModalDadosMateria] = useState(false);
+    const [dadosEditaveisMateria, setDadosEditaveisMateria] = useState({
+        id: "",
+        nome: "",
+        descricao: "",
+    });
+    const [modalCriarAtividade, setModalCriarAtividade] = useState(false);
+    const [dadosCriarAtividade, setDadosCriarAtividade] = useState({
+        nome: "",
+        descricao: "",
+    });
 
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, async (u) => {
+            setLoading(true);
             if (u && u.uid === id) {
-                setUser(u);
                 try {
-                    const m = await daoMateria.obterMateriaPorId(db, id, materiaId);
-                    setMateria(m);
-                    const lista = await daoAssunto.listarPorMateria(db, id, materiaId);
-                    setAtividades(lista);
-                } catch (e) {
-                    console.error(e);
-                    setMateria(null);
+                    const dadosUsuario = await daoUsuario.consultarPorId(id);
+
+                    const dadosMateria = await daoMateria.consultarPorId(id, materiaId);
+
+                    const atvs = await daoAtividade.consultarPorMateria(id, materiaId);
+
+                    setUser({
+                        id: dadosUsuario.id,
+                        nome: dadosUsuario.nome,
+                        dataNasc: dadosUsuario.dataNasc,
+                        email: dadosUsuario.email,
+                    });
+                    setMateria({
+                        id: dadosMateria.id,
+                        nome: dadosMateria.nome,
+                        descricao: dadosMateria.descricao,
+                    });
+                    setAtividades(atvs);
+                } catch (error) {
+                    notifyError(error.message);
+                    appActions.handleLogout();
                 }
             } else {
-                setUser(null);
+                appActions.handleLogout();
             }
             setLoading(false);
         });
+
         return () => unsub();
-    }, [auth, db, daoMateria, daoAssunto, id, materiaId]);
+    }, [auth, id, materiaId]);
 
-    if (loading) return <div>Carregando...</div>;
-    if (!user) return <Navigate to='/' replace />;
-    if (!materia) return <div>Matéria não encontrada.</div>;
+    const atualizarListaAtividades = async () => {
+        try {
+            const atvs = await daoAtividade.consultarPorMateria(id, materiaId);
+            setAtividades(atvs);
+        } catch (error) {
+            notifyError(error.message);
+        }
+    }
 
-    const abrirModalAssunto = () => setShowAssuntoModal(true);
-    const fecharModalAssunto = () => { setShowAssuntoModal(false); setNovaAssunto(''); };
-
-    const salvarAssunto = async () => {
-        if (!novaAssunto.trim()) return;
-        const key = await daoAssunto.criar(db, id, materiaId, new Assunto(novaAssunto, Date.now()));
-        setAtividades(prev => [...prev, { id: key, nome: novaAssunto }]);
-        fecharModalAssunto();
+    const abrirModalMateria = (nome, desc) => {
+        setModalDadosMateria(true);
+        setDadosEditaveisMateria({
+            nome: nome,
+            descricao: desc,
+        });
     };
 
-    const abrirModalRegistro = async (atividade) => {
-        setCurrentAssunto(atividade);
-        const regs = await daoRegistro.listarPorAssunto(db, id, materiaId, atividade.id);
-        setRegistros(regs);
-        setShowRegistroModal(true);
+    const atualizarDadosMateria = async () => {
+        try {
+            setLoading(true);
+            if (!dadosEditaveisMateria.nome || !dadosEditaveisMateria.descricao) {
+                notifyWarning("Preencha todos os campos!");
+                return;
+            }
+            dadosEditaveisMateria.id = materiaId;
+            const materiaAtualizada = await daoMateria.editar(
+                id,
+                dadosEditaveisMateria
+            );
+            setMateria({
+                id: materiaAtualizada.id,
+                nome: materiaAtualizada.nome,
+                descricao: materiaAtualizada.descricao,
+            });
+            setModalDadosMateria(false);
+            notifySuccess("Dados atualizados!");
+        } catch (error) {
+            notifyError(error.message);
+        } finally {
+            setLoading(false);
+        }
     };
-    const fecharModalRegistro = () => { setShowRegistroModal(false); setRegistroHoras(0); setCurrentAssunto(null); };
 
-    const salvarRegistro = async () => {
-        if (registroHoras <= 0) return;
-        await daoRegistro.criar(db, id, materiaId, currentAssunto.id, registroHoras);
-        const regs = await daoRegistro.listarPorAssunto(db, id, materiaId, currentAssunto.id);
-        setRegistros(regs);
-        fecharModalRegistro();
+    const criarAtividade = async () => {
+        try {
+            setLoading(true);
+            if (!dadosCriarAtividade.nome || !dadosCriarAtividade.descricao) {
+                notifyWarning("Preencha todos os campos!");
+                return;
+            }
+            const atividade = await daoAtividade.criar(id, materiaId, dadosCriarAtividade);
+            abrirFecharModalCriacaoAtividade(false);
+            atualizarListaAtividades();
+            notifySuccess("Atividade criada com sucesso!");
+        } catch (error) {
+            notifyError(error.message);
+        } finally {
+            setLoading(false);
+        }
     };
+
+    const abrirFecharModalCriacaoAtividade = (trueOrFalse) => {
+        setModalCriarAtividade(trueOrFalse);
+        setDadosCriarAtividade({
+            nome: "",
+            descricao: "",
+        });
+    };
+
+    const voltarParaMaterias = () => {
+        appActions.goToMaterias(id);
+    }
 
     return (
-        <div>
-            <h2>{materia.nome}</h2>
-            <p>{materia.descricao}</p>
-            <button onClick={() => navigate(`/home/${id}`)}>Voltar</button>
+        <>
+            <div className="container">
+                {user && (
+                    <Header
+                        nomeUsuario={user.nome}
+                        onLogout={() => appActions.handleLogout()}
+                        goToMaterias={() => appActions.goToMaterias(user.id)}
+                        goToHome={() => appActions.goToHome(user.id)}
+                    />
+                )}
 
-            <section>
-                <h3>Assuntos</h3>
-                <button onClick={abrirModalAssunto}>+ Novo Assunto</button>
-                <ul>
-                    {atividades.map(a => (
-                        <li key={a.id}>
-                            {a.nome}
-                            <button onClick={() => abrirModalRegistro(a)}>Registrar Horas</button>
-                        </li>
-                    ))}
-                </ul>
-            </section>
+                {materia && (
+                    <div className="card">
+                        <h5 className="card-header">{materia.nome}</h5>
+                        <div className="card-body">
+                            <p className="card-text">{materia.descricao}</p>
+                            <div className="d-flex justify-content-end">
+                                <button
+                                    onClick={() =>
+                                        abrirModalMateria(materia.nome, materia.descricao)
+                                    }
+                                    type="button"
+                                    className="btn btn-primary me-1"
+                                >
+                                    Editar
+                                </button>
+                                <button
+                                    onClick={() => abrirFecharModalCriacaoAtividade(true)}
+                                    type="button"
+                                    className="btn btn-primary me-1"
+                                >
+                                    Adicionar Atividade
+                                </button>
+                                <button
+                                    onClick={() => voltarParaMaterias()}
+                                    type="button"
+                                    className="btn btn-primary"
+                                >
+                                    Voltar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
-            {showAssuntoModal && (
-                <div className='modal'>
-                    <div className='modal-content'>
-                        <h4>Novo Assunto</h4>
-                        <input
-                            value={novaAssunto}
-                            onChange={e => setNovaAssunto(e.target.value)}
-                            placeholder='Nome do atividade'
-                        />
-                        <button onClick={salvarAssunto}>Salvar</button>
-                        <button onClick={fecharModalAssunto}>Cancelar</button>
+
+                <div className="card">
+                    <h5 className="card-header">Atividades</h5>
+                    <div className="card-body">
+                        <table className="table table-hover">
+                            <thead className="table-light">
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Descrição</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {atividades.map((atividade, index) => (
+                                    <tr
+                                        key={index}
+                                        onClick={() => appActions.goToAtividade(id, materiaId, atividade.id)}
+                                        style={{ cursor: "pointer" }}
+                                    >
+                                        <td>{atividade.nome}</td>
+                                        <td>{atividade.descricao}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            )}
 
-            {showRegistroModal && (
-                <div className='modal'>
-                    <div className='modal-content'>
-                        <h4>Registro de Horas - {currentAssunto.nome}</h4>
-                        <input
-                            type='number'
-                            value={registroHoras}
-                            onChange={e => setRegistroHoras(Number(e.target.value))}
-                            placeholder='Horas estudadas'
-                        />
-                        <button onClick={salvarRegistro}>Salvar</button>
-                        <button onClick={fecharModalRegistro}>Cancelar</button>
-                        <h5>Histórico de registros:</h5>
-                        <ul>
-                            {registros.map(r => (
-                                <li key={r.id}>{r.horas}h em {new Date(r.data).toLocaleDateString()}</li>
-                            ))}
-                        </ul>
+
+                {modalDadosMateria && (
+                    <div
+                        className="modal fade show d-block"
+                        tabIndex="-1"
+                        style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+                    >
+                        <div className="modal-dialog">
+                            <div className="modal-content">
+                                <div className="modal-header">
+                                    <h1 className="modal-title fs-5">Dados da Matéria</h1>
+                                    <button
+                                        type="button"
+                                        className="btn-close"
+                                        onClick={() => setModalDadosMateria(false)}
+                                        aria-label="Close"
+                                    ></button>
+                                </div>
+                                <div className="modal-body">
+                                    <div className="mb-3">
+                                        <label className="form-label">Nome</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={dadosEditaveisMateria.nome}
+                                            onChange={(e) =>
+                                                setDadosEditaveisMateria({
+                                                    ...dadosEditaveisMateria,
+                                                    nome: e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </div>
+
+                                    <div className="mb-3">
+                                        <label className="form-label">Descrição</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={dadosEditaveisMateria.descricao}
+                                            onChange={(e) =>
+                                                setDadosEditaveisMateria({
+                                                    ...dadosEditaveisMateria,
+                                                    descricao: e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="modal-footer">
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={() => {
+                                            setModalDadosMateria(false);
+                                        }}
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={() => atualizarDadosMateria()}
+                                    >
+                                        Salvar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )}
+
+                {modalCriarAtividade && (
+                    <div
+                        className="modal fade show d-block"
+                        tabIndex="-1"
+                        style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+                    >
+                        <div className="modal-dialog">
+                            <div className="modal-content">
+                                <div className="modal-header">
+                                    <h1 className="modal-title fs-5">Criar Atividade</h1>
+                                    <button
+                                        type="button"
+                                        className="btn-close"
+                                        onClick={() =>
+                                            abrirFecharModalCriacaoAtividade(false)}
+                                        aria-label="Close"
+                                    ></button>
+                                </div>
+                                <div className="modal-body">
+                                    <div className="mb-3">
+                                        <label className="form-label">Nome</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={dadosCriarAtividade.nome}
+                                            onChange={(e) =>
+                                                setDadosCriarAtividade({
+                                                    ...dadosCriarAtividade,
+                                                    nome: e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </div>
+
+                                    <div className="mb-3">
+                                        <label className="form-label">Descricao</label>
+                                        <textarea
+                                            className="form-control"
+                                            aria-label="With textarea"
+                                            value={dadosCriarAtividade.descricao}
+                                            onChange={(e) =>
+                                                setDadosCriarAtividade({
+                                                    ...dadosCriarAtividade,
+                                                    descricao: e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="modal-footer">
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={() => abrirFecharModalCriacaoAtividade(false)}
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={() => criarAtividade()}
+                                    >
+                                        Salvar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+            <NotificationContainer />
+            <LoadingModal visible={loading} text="Aguarde..." />
+        </>
     );
 }

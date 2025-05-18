@@ -61,7 +61,7 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={login}
-                    className="btn btn-primary"
+                    className="btn btn-primary me-2"
                   >
                     Entrar
                   </button>
