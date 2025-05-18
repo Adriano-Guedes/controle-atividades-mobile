@@ -12,7 +12,7 @@ export default class Registro {
 
     setData(data) {
         //Registro.validarData(data);
-        this.data = data; 
+        this.data = formatarData(data);
     }
 
     getHoras() {
@@ -21,7 +21,7 @@ export default class Registro {
 
     setHoras(horas) {
         Registro.validarHoras(horas);
-        this.horas = horas; 
+        this.horas = horas;
     }
 
     static validarData(data) {
@@ -45,7 +45,23 @@ export default class Registro {
         );
     }
 
-    static validarHoras(horas){
-        if(horas<=0) throw new ModelError("Quantidade de horas deve ser maior que 0!");;
+    static validarHoras(horas) {
+        if (horas <= 0) throw new ModelError("Quantidade de horas deve ser maior que 0!");;
     }
+
+}
+function formatarData(dataStr) {
+    const formatoBanco = /^\d{4}[-/]\d{2}[-/]\d{2}$/;
+    const formatoFinal = /^\d{2}\/\d{2}\/\d{4}$/;
+
+    if (formatoFinal.test(dataStr)) {
+        return dataStr;
+    }
+
+    if (formatoBanco.test(dataStr)) {
+        const [ano, mes, dia] = dataStr.split(/[-/]/);
+        return `${dia}/${mes}/${ano}`;
+    }
+
+    return '';
 }

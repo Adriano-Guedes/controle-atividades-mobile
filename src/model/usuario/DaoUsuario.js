@@ -1,13 +1,4 @@
-import {
-  getDatabase,
-  ref,
-  query,
-  child,
-  get,
-  set,
-  remove,
-  runTransaction,
-} from "firebase/database";
+import { getDatabase, ref, get, update, remove } from "firebase/database";
 import Usuario from "./Usuario.js";
 import UsuarioId from "./UsuarioId.js";
 import ModelError from "../ModelError.js";
@@ -41,13 +32,15 @@ export default class DaoUsuario {
         usuario.dataNasc,
         usuario.email
       );
-      await set(ref(connectionDB, `usuarios/${userId}`), {
+  
+      await update(ref(connectionDB, `usuarios/${userId}`), {
         nome: updateUsuario.nome,
         dataNasc: updateUsuario.dataNasc,
         email: updateUsuario.email,
       });
+  
+      return await this.consultarPorId(userId);
     } catch (error) {
-      console.error("Erro ao editar usuário:", error);
       throw new Error("Não foi possível editar dados. Tente novamente.");
     }
   }
@@ -69,7 +62,8 @@ export default class DaoUsuario {
       const snapshot = await get(dbRef);
       if (snapshot.exists()) {
         const obj = snapshot.val();
-        return new UsuarioId(snapshot.key, obj.nome, obj.dataNasc, obj.email);
+        const user = new UsuarioId(snapshot.key, obj.nome, obj.dataNasc, obj.email);
+        return user;
       } else {
         return null;
       }

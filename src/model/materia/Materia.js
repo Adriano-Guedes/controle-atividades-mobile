@@ -27,11 +27,17 @@ export default class Materia {
   // --------------------------------------------------------
 
   static validarNome(nome) {
-    if (!nome || typeof nome !== "string")
-      throw new ModelError("Nome inválido ou não é uma string!");
-    if (nome.length < 1 || nome.length > 50)
-      throw new ModelError("Nome deve possuir entre 1 e 50 caracteres!");
+    if (typeof nome !== "string" || !nome.trim()) {
+      throw new ModelError("Nome inválido: deve ser uma string não vazia!");
+    }
+  
+    const tamanho = nome.trim().length;
+  
+    if (tamanho < 1 || tamanho > 50) {
+      throw new ModelError("Nome deve ter entre 1 e 50 caracteres!");
+    }
   }
+  
 
   // --------------------------------------------------------
 

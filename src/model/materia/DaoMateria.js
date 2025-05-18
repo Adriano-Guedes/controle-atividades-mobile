@@ -1,4 +1,4 @@
-import { getDatabase, ref, get, push, set, remove } from "firebase/database";
+import { getDatabase, ref, get, push, update, remove } from "firebase/database";
 import Materia from "./Materia.js";
 import MateriaId from "./MateriaId.js";
 import ModelError from "../ModelError.js";
@@ -60,10 +60,11 @@ export default class DaoMateria {
   async criar(userId, materia) {
     try {
       let connectionDB = await this.obterConexao();
-      const newMateria = new Materia(materia.nome, materia.descricao);
-      const res = await push(ref(connectionDB, `usuarios/${userId}/materias`), {
-        nome: newMateria.nome,
-        descricao: newMateria.descricao,
+  
+      const refMaterias = ref(connectionDB, `usuarios/${userId}/materias`);
+      const res = await push(refMaterias, {
+        nome: materia.nome,
+        descricao: materia.descricao,
       });
       return res.key;
     } catch (error) {
@@ -71,15 +72,19 @@ export default class DaoMateria {
       throw new Error("Não foi possível criar a matéria. Tente novamente.");
     }
   }
+  
 
   async editar(userId, materia) {
     try {
       let connectionDB = await this.obterConexao();
       const updateMateria = new Materia(materia.nome, materia.descricao);
-      await set(ref(connectionDB, `usuarios/${userId}/materias/${materia.id}`), {
+  
+      await update(ref(connectionDB, `usuarios/${userId}/materias/${materia.id}`), {
         nome: updateMateria.nome,
         descricao: updateMateria.descricao,
       });
+  
+      return new MateriaId(materia.id, updateMateria);
     } catch (error) {
       console.error("Erro ao editar matéria:", error);
       throw new Error("Não foi possível editar a matéria. Tente novamente.");
