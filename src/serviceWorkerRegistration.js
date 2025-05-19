@@ -6,7 +6,6 @@ export function register(config) {
       navigator.serviceWorker
         .register(swUrl)
         .then(registration => {
-          // Lógica de atualização opcional
         })
         .catch(error => {
           console.error('Erro ao registrar o service worker:', error);

@@ -1,20 +1,24 @@
 {
-  "short_name": "MeuApp",
-  "name": "Meu Aplicativo PWA",
+  "name": "StudyTrack Mobile",
+  "short_name": "StudyTrack",
+  "description": "Instalador do StudyTrack.",
+  "lang": "pt-BR",
+  "start_url": "https://controle-atividades-mobile.vercel.app/",
+  "display": "fullscreen",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "scope": "/",
+  "orientation": "portrait",
   "icons": [
     {
-      "src": "icons/book-128.pg",
+      "src": "icons/book-192.png",
       "type": "image/png",
-      "sizes": "128x128"
+      "sizes": "192x192"
     },
     {
       "src": "icons/book-512.png",
       "type": "image/png",
       "sizes": "512x512"
     }
-  ],
-  "start_url": "https://controle-atividades-mobile.vercel.app/",
-  "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  ]
 }
