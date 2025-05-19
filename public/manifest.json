@@ -4,10 +4,9 @@
   "description": "Instalador do StudyTrack.",
   "lang": "pt-BR",
   "start_url": "https://controle-atividades-mobile.vercel.app/",
-  "display": "fullscreen",
+  "display": "standalone",
   "theme_color": "#000000",
   "background_color": "#ffffff",
-  "scope": "/",
   "orientation": "portrait",
   "icons": [
     {
